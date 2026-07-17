@@ -49,6 +49,14 @@ chart-lint: ## Lint the Helm chart
 	docker run --rm -v $(PWD):$(WORKDIR) -w $(WORKDIR) $(HELM_IMAGE) \
 		lint charts/kubecause
 
+.PHONY: e2e
+e2e: ## Run the end-to-end test against a local kind cluster (see e2e/README.md)
+	./e2e/run.sh
+
+.PHONY: e2e-clean
+e2e-clean: ## Run the end-to-end test and tear down the cluster at the end
+	E2E_CLEAN=1 ./e2e/run.sh
+
 .PHONY: chart-template
 chart-template: ## Render Helm chart templates for inspection
 	docker run --rm -v $(PWD):$(WORKDIR) -w $(WORKDIR) $(HELM_IMAGE) \
