@@ -1,0 +1,77 @@
+# Default values for kubecause.
+
+image:
+  repository: ghcr.io/vipulvc08/kubecause
+  tag: ""            # falls back to Chart.appVersion
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# --- PagerDuty integration ---
+pagerduty:
+  # Shared secret used to verify incoming webhook signatures.
+  # REQUIRED. Provide via --set-string or a pre-created secret.
+  webhookSecret: ""
+  # PagerDuty REST API token used to post incident notes.
+  apiToken: ""
+  # If set, kubecause will read the secret instead of using values above.
+  existingSecret: ""
+
+# --- LLM provider ---
+llm:
+  # One of: claude, openai
+  provider: claude
+  apiKey: ""
+  model: ""          # provider default when empty
+  existingSecret: ""
+
+# --- Service exposure ---
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: kubecause.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# --- Pod-level knobs ---
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}

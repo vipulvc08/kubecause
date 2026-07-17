@@ -1,0 +1,23 @@
+Thanks for installing {{ .Chart.Name }} ({{ .Chart.AppVersion }}).
+
+1. Point your PagerDuty service webhook at kubecause. If ingress is enabled:
+
+     https://{{ (index .Values.ingress.hosts 0).host }}/webhook/pagerduty
+
+   Otherwise, port-forward for testing:
+
+     kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "kubecause.fullname" . }} 8080:{{ .Values.service.port }}
+     # then send test webhooks to http://localhost:8080/webhook/pagerduty
+
+2. Verify the agent is healthy:
+
+     kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/name={{ include "kubecause.name" . }}
+
+3. Tail logs while an incident is in flight:
+
+     kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/name={{ include "kubecause.name" . }} -f
+
+Security note:
+  kubecause runs with a read-only ClusterRole. It cannot read Secrets,
+  cannot exec into pods, and cannot mutate any resource. See:
+  https://github.com/vipulvc08/kubecause#security-posture

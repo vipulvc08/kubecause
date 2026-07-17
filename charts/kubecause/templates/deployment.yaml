@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubecause.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubecause.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kubecause.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubecause.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "kubecause.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: kubecause
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: KUBECAUSE_ADDR
+              value: ":8080"
+            - name: LLM_PROVIDER
+              value: {{ .Values.llm.provider | quote }}
+            {{- if .Values.llm.model }}
+            - name: LLM_MODEL
+              value: {{ .Values.llm.model | quote }}
+            {{- end }}
+            - name: PAGERDUTY_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-pagerduty" (include "kubecause.fullname" .)) .Values.pagerduty.existingSecret }}
+                  key: webhook-secret
+            - name: PAGERDUTY_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-pagerduty" (include "kubecause.fullname" .)) .Values.pagerduty.existingSecret }}
+                  key: api-token
+                  optional: true
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-llm" (include "kubecause.fullname" .)) .Values.llm.existingSecret }}
+                  key: api-key
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

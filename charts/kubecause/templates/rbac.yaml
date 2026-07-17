@@ -1,0 +1,103 @@
+{{- if .Values.serviceAccount.create -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "kubecause.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubecause.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+---
+# kubecause holds ONLY read verbs, and explicitly does NOT include:
+#   - secrets       (never)
+#   - pods/exec, pods/attach, pods/portforward   (never)
+#   - serviceaccounts/token                      (never)
+#   - any create/update/patch/delete             (never)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kubecause.fullname" . }}
+  labels:
+    {{- include "kubecause.labels" . | nindent 4 }}
+rules:
+  # Core read
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+      - endpoints
+      - nodes
+      - events
+      - namespaces
+      - configmaps
+      - persistentvolumeclaims
+      - persistentvolumes
+      - replicationcontrollers
+      - resourcequotas
+      - limitranges
+    verbs: [get, list, watch]
+
+  # Pod logs — separate subresource
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get, list]
+
+  # Workloads
+  - apiGroups: [apps]
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+      - controllerrevisions
+    verbs: [get, list, watch]
+
+  # Batch
+  - apiGroups: [batch]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: [get, list]
+
+  # Networking
+  - apiGroups: [networking.k8s.io]
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs: [get, list]
+
+  # Autoscaling
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list]
+
+  # Policy
+  - apiGroups: [policy]
+    resources: [poddisruptionbudgets]
+    verbs: [get, list]
+
+  # Metrics (best-effort — no-op if metrics-server absent)
+  - apiGroups: [metrics.k8s.io]
+    resources:
+      - pods
+      - nodes
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kubecause.fullname" . }}
+  labels:
+    {{- include "kubecause.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "kubecause.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kubecause.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
