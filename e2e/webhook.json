@@ -1,0 +1,12 @@
+{
+  "event": {
+    "id": "e2e-evt-1",
+    "event_type": "incident.triggered",
+    "occurred_at": "2026-07-17T12:00:00Z",
+    "data": {
+      "id": "PE2E001",
+      "type": "incident",
+      "title": "crashy deployment is CrashLoopBackOff"
+    }
+  }
+}
