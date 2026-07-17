@@ -1,0 +1,100 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref — saves minutes on rapid pushes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  # ----- Go: vet + build + test -----
+  go:
+    name: go (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go build
+        run: go build -trimpath ./...
+
+      - name: go test
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: coverage summary
+        run: go tool cover -func=coverage.out | tail -20
+
+  # ----- Helm chart: lint + render -----
+  helm:
+    name: helm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: helm lint
+        run: helm lint charts/kubecause
+
+      - name: helm template (smoke render with dummy values)
+        run: |
+          helm template kubecause charts/kubecause \
+            --set pagerduty.webhookSecret=ci-test \
+            --set llm.apiKey=ci-test \
+            > /tmp/rendered.yaml
+          echo "Rendered $(wc -l < /tmp/rendered.yaml) lines"
+
+  # ----- Container image: build (no push in PR CI) -----
+  image:
+    name: image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: docker build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: kubecause:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=ci-${{ github.sha }}
+            COMMIT=${{ github.sha }}
+
+      - name: image smoke test
+        # kubecause fails config validation when PAGERDUTY_WEBHOOK_SECRET
+        # is missing. A quick run should exit non-zero and print the
+        # expected error line — this proves the binary is intact and
+        # config wiring is reachable.
+        run: |
+          set +e
+          out=$(docker run --rm kubecause:ci 2>&1)
+          echo "$out"
+          echo "$out" | grep -q "PAGERDUTY_WEBHOOK_SECRET is required"

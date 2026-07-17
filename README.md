@@ -1,5 +1,9 @@
 # kubecause
 
+[![ci](https://github.com/vipulvc08/kubecause/actions/workflows/ci.yaml/badge.svg)](https://github.com/vipulvc08/kubecause/actions/workflows/ci.yaml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vipulvc08/kubecause)](https://goreportcard.com/report/github.com/vipulvc08/kubecause)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 **Root-cause analysis agent for PagerDuty incidents in Kubernetes clusters.**
 
 When a PagerDuty incident fires, `kubecause` gathers evidence from your cluster — events, pod logs, rollout history, resource state — reasons over it with an LLM, and posts a structured RCA back to the incident note before the on-call human even opens their laptop.
