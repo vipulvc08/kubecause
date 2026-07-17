@@ -16,7 +16,9 @@ import (
 	"time"
 
 	"github.com/vipulvc08/kubecause/internal/config"
+	"github.com/vipulvc08/kubecause/internal/kube"
 	"github.com/vipulvc08/kubecause/internal/pagerduty"
+	"github.com/vipulvc08/kubecause/internal/tools"
 )
 
 func main() {
@@ -28,6 +30,20 @@ func main() {
 		logger.Error("failed to load config", "err", err)
 		os.Exit(1)
 	}
+
+	kc, err := kube.New()
+	if err != nil {
+		logger.Warn("kube client unavailable — tools will fail at call time", "err", err)
+	}
+
+	registry := tools.NewRegistry()
+	if kc != nil {
+		registry.Register(tools.KubeEvents(kc))
+		registry.Register(tools.PodLogs(kc))
+		registry.Register(tools.KubeDescribe(kc))
+		registry.Register(tools.RolloutHistory(kc))
+	}
+	logger.Info("tools registered", "count", len(registry.Specs()))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
